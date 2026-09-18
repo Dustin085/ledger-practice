@@ -1,6 +1,7 @@
 package com.example.ledgerpractice.journal;
 
 import com.example.ledgerpractice.account.Account;
+import com.example.ledgerpractice.transfer.JournalLineRequest;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
