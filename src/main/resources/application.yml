@@ -1,0 +1,6 @@
+spring:
+  application:
+    name: ledger-practice
+
+  thymeleaf:
+    cache: false
