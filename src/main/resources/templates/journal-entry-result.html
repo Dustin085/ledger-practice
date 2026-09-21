@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>分錄建立結果</title>
+</head>
+<body>
+
+<h1>分錄建立成功</h1>
+
+<p>分錄編號：<span th:text="${journalEntry.id}"></span></p>
+<p>日期：<span th:text="${journalEntry.entryDate}"></span></p>
+<p>摘要：<span th:text="${journalEntry.description}"></span></p>
+<p>狀態：<span th:text="${journalEntry.status}"></span></p>
+
+<table>
+    <thead>
+    <tr>
+        <th>科目</th>
+        <th>借方金額</th>
+        <th>貸方金額</th>
+        <th>備註</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="line : ${journalEntry.lines}">
+        <td th:text="${line.account.code} + ' ' + ${line.account.name}"></td>
+        <td th:text="${line.debitAmount}"></td>
+        <td th:text="${line.creditAmount}"></td>
+        <td th:text="${line.memo}"></td>
+    </tr>
+    </tbody>
+</table>
+
+<p><a th:href="@{/journal-entries/new}">再建立一筆</a></p>
+
+</body>
+</html>
