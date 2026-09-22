@@ -1,16 +1,19 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="zh-TW">
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}" lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
     <title>Thymeleaf Hello World</title>
 </head>
 <body>
+<div layout:fragment="content">
 
-<!-- 使用 ${...} 取出 Controller 帶過來的 Model 資料 -->
-<h1 th:text="${message}">這裡的預設文字會被 Thymeleaf 覆蓋</h1>
+    <!-- 使用 ${...} 取出 Controller 帶過來的 Model 資料 -->
+    <h1 th:text="${message}">這裡的預設文字會被 Thymeleaf 覆蓋</h1>
 
-<!-- 基本語法範例 -->
-<p>當前狀態：<span th:text="${message != null ? '成功取得資料' : '無資料'}"></span></p>
+    <!-- 基本語法範例 -->
+    <p>當前狀態：<span th:text="${message != null ? '成功取得資料' : '無資料'}"></span></p>
 
+</div>
 </body>
 </html>

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}" lang="zh-TW">
+<head>
+    <title>分錄列表</title>
+</head>
+<body>
+<div layout:fragment="content">
+
+    <h1>分錄列表</h1>
+
+    <p>
+        <a th:href="@{/journal-entries}"
+           th:text="${selectedStatus == null ? '[全部]' : '全部'}"></a>
+        &nbsp;
+        <span th:each="status : ${T(com.example.ledgerpractice.journal.JournalEntryStatus).values()}">
+            <a th:href="@{/journal-entries(status=${status})}"
+               th:text="${selectedStatus == status ? '[' + status + ']' : status}"></a>
+            &nbsp;
+        </span>
+    </p>
+
+    <p><a th:href="@{/journal-entries/new}">新增分錄</a></p>
+
+    <table>
+        <thead>
+        <tr>
+            <th>編號</th>
+            <th>日期</th>
+            <th>摘要</th>
+            <th>狀態</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="entry : ${journalEntries}">
+            <td th:text="${entry.id}"></td>
+            <td th:text="${entry.entryDate}"></td>
+            <td>
+                <a th:href="@{/journal-entries/{id}(id=${entry.id})}" th:text="${entry.description}"></a>
+            </td>
+            <td th:text="${entry.status}"></td>
+        </tr>
+        <tr th:if="${#lists.isEmpty(journalEntries)}">
+            <td colspan="4">沒有符合條件的分錄</td>
+        </tr>
+        </tbody>
+    </table>
+
+</div>
+</body>
+</html>

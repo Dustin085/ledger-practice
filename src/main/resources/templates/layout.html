@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title layout:title-pattern="$CONTENT_TITLE - ledger-practice">ledger-practice</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<nav>
+    <a th:href="@{/journal-entries}">分錄列表</a>
+    <a th:href="@{/journal-entries/new}">新增分錄</a>
+    <a th:href="@{/transfers/pending}">待處理轉帳</a>
+    <a th:href="@{/report/trial-balance}">試算表</a>
+</nav>
+<div layout:fragment="content"></div>
+</body>
+</html>

@@ -1,38 +1,42 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="zh-TW">
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}" lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
     <title>試算平衡表</title>
 </head>
 <body>
-<h2>試算平衡表</h2>
+<div layout:fragment="content">
 
-<table>
-    <thead>
-    <tr>
-        <td>編號</td>
-        <td>名稱</td>
-        <td>類型</td>
-        <td>總借額</td>
-        <td>總貸額</td>
-    </tr>
-    </thead>
-    <tbody>
-    <tr th:each="balance : ${balances}">
-        <td th:text="${balance.accountCode}">1101</td>
-        <td th:text="${balance.accountName}">現金</td>
-        <td th:text="${balance.accountType}">ASSET</td>
-        <td th:text="${balance.totalDebit}">1000</td>
-        <td th:text="${balance.totalCredit}">2000</td>
-    </tr>
-    </tbody>
-    <tfoot>
-    <tr>
-        <td th:text="|借合計: ${totalDebit}|">借合計:???</td>
-        <td th:text="|貸合計: ${totalCredit}|">貸合計:???</td>
-    </tr>
-    </tfoot>
-</table>
+    <h2>試算平衡表</h2>
 
+    <table>
+        <thead>
+        <tr>
+            <td>編號</td>
+            <td>名稱</td>
+            <td>類型</td>
+            <td>總借額</td>
+            <td>總貸額</td>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="balance : ${balances}">
+            <td th:text="${balance.accountCode}">1101</td>
+            <td th:text="${balance.accountName}">現金</td>
+            <td th:text="${balance.accountType}">ASSET</td>
+            <td th:text="${balance.totalDebit}">1000</td>
+            <td th:text="${balance.totalCredit}">2000</td>
+        </tr>
+        </tbody>
+        <tfoot>
+        <tr>
+            <td th:text="|借合計: ${totalDebit}|">借合計:???</td>
+            <td th:text="|貸合計: ${totalCredit}|">貸合計:???</td>
+        </tr>
+        </tfoot>
+    </table>
+
+</div>
 </body>
 </html>

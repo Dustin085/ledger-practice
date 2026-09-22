@@ -31,7 +31,7 @@ public class LedgerController {
         form.getLines().add(new LineForm());
         model.addAttribute("transferForm", form);
         model.addAttribute("accounts", accountRepository.findAll());
-        return "journal-entry-form";
+        return "pages/journal-entries/form";
     }
 
     @PostMapping("/journal-entries")
@@ -43,7 +43,7 @@ public class LedgerController {
         model.addAttribute("accounts", accountRepository.findAll());
 
         if (bindingResult.hasErrors()) {
-            return "journal-entry-form";
+            return "pages/journal-entries/form";
         }
 
         List<JournalLineRequest> lines = new ArrayList<>();
@@ -62,12 +62,12 @@ public class LedgerController {
                     lines,
                     form.getExternalCounterparty());
             model.addAttribute("journalEntry", journalEntry);
-            return "journal-entry-result";
+            return "pages/journal-entries/detail";
         } catch (UnbalancedJournalEntryException | IllegalArgumentException | IllegalStateException e) {
             // 比照 JSP-practice 的做法：驗證失敗時不清空使用者輸入，重新渲染同一個 form
             // （transferForm 已經是這個 method 的參數，Spring 會自動放回 Model）。
             model.addAttribute("errorMessage", e.getMessage());
-            return "journal-entry-form";
+            return "pages/journal-entries/form";
         }
     }
 }
