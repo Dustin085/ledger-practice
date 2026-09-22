@@ -24,7 +24,8 @@ public class OutboxRelay {
         for (OutboxEvent outboxEvent : outboxEvents) {
             SubmitOutcome submitOutcome = transferSubmissionService.submit(outboxEvent.getAggregateId());
             if (submitOutcome == SubmitOutcome.SUBMITTED
-                    || submitOutcome == SubmitOutcome.ALREADY_HANDLED) {
+                    || submitOutcome == SubmitOutcome.ALREADY_HANDLED
+                    || submitOutcome == SubmitOutcome.GAVE_UP) {
                 outboxEvent.setPublishedAt(Instant.now());
                 outboxEventRepository.save(outboxEvent);
             }

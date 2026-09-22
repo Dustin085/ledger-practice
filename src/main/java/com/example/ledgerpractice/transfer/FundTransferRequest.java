@@ -59,7 +59,7 @@ public class FundTransferRequest {
     private TransferStatus status = TransferStatus.CREATED;
 
     // 外部服務回傳的交易編號；送出前是 null，用來做查詢/對帳/冪等比對。
-    @Column(name = "external_reference_id", length = 100)
+    @Column(name = "external_reference_id", length = 100, unique = true)
     private String externalReferenceId;
 
     @Column(name = "attempt_count", nullable = false)

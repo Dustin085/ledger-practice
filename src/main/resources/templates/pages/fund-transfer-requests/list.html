@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>已送出外部金流</title>
+</head>
+<body>
+<h2>已送出外部金流請求列表</h2>
+
+<div th:if="${errorMessage}" style="color:red;">
+    <p th:text="${errorMessage}"></p>
+</div>
+
+<table>
+    <thead>
+    <tr>
+        <td>金流 ID</td>
+        <td>分錄 ID</td>
+        <td>來源帳號 ID</td>
+        <td>金額</td>
+        <td>外部識別</td>
+        <td>狀態</td>
+        <td>外部 ID</td>
+        <td>操作</td>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="transfer, transferStat : ${pendingTransferRequests}">
+        <td th:text="${transfer.id}">金流 ID</td>
+        <td th:text="${transfer.journalEntry.id}">分錄 ID</td>
+        <td th:text="${transfer.sourceAccount.id}">來源帳號 ID</td>
+        <td th:text="${transfer.amount}">金額</td>
+        <td th:text="${transfer.externalCounterparty}">外部識別</td>
+        <td th:text="${transfer.status}">狀態</td>
+        <td th:text="${transfer.externalReferenceId}">外部 ID</td>
+        <td>
+            <form method="post" th:action="@{/transfers/{ref}/confirm(ref=${transfer.externalReferenceId})}" style="display:inline;">
+                <button type="submit">模擬成功</button>
+            </form>
+            <form method="post" th:action="@{/transfers/{ref}/fail(ref=${transfer.externalReferenceId})}" style="display:inline;">
+                <button type="submit">模擬失敗</button>
+            </form>
+        </td>
+    </tr>
+    </tbody>
+</table>
+
+</body>
+</html>

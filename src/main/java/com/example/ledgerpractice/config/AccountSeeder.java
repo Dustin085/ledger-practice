@@ -4,9 +4,12 @@ import com.example.ledgerpractice.account.Account;
 import com.example.ledgerpractice.account.AccountRepository;
 import com.example.ledgerpractice.account.AccountType;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
+// @Order(1)：DemoDataSeeder 要靠 code 查出這裡建立的科目，一定要先跑完。
 @Component
+@Order(1)
 public class AccountSeeder implements CommandLineRunner {
 
     private final AccountRepository accountRepository;
