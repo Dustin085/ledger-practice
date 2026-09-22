@@ -1,4 +1,4 @@
-package com.example.ledgerpractice.controller;
+package com.example.ledgerpractice.ledger;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;

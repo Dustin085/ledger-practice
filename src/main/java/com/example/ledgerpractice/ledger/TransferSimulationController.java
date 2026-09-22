@@ -1,6 +1,5 @@
-package com.example.ledgerpractice.controller;
+package com.example.ledgerpractice.ledger;
 
-import com.example.ledgerpractice.ledger.TransferResultService;
 import com.example.ledgerpractice.transfer.FundTransferRequest;
 import com.example.ledgerpractice.transfer.FundTransferRequestRepository;
 import com.example.ledgerpractice.transfer.TransferStatus;

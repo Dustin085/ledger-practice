@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.ledgerpractice.report.TrialBalanceMapper">
+    <select id="findTrialBalance" resultType="com.example.ledgerpractice.report.TrialBalanceRow">
+        SELECT
+        a.code AS account_code,
+        a.name AS account_name,
+        a.type AS account_type,
+        CAST(COALESCE(SUM(posted.debit_amount), 0) AS DECIMAL(19,2)) AS totalDebit,
+        CAST(COALESCE(SUM(posted.credit_amount), 0) AS DECIMAL(19,2)) AS totalCredit
+        FROM account a
+        LEFT JOIN (
+        SELECT l.account_id, l.debit_amount, l.credit_amount
+        FROM journal_entry_line l
+        JOIN journal_entry je ON je.id = l.journal_entry_id
+        WHERE je.status = 'POSTED'
+        ) posted ON posted.account_id = a.id
+        GROUP BY a.id, a.code, a.name, a.type
+        ORDER BY a.code
+    </select>
+</mapper>

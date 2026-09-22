@@ -1,9 +1,7 @@
-package com.example.ledgerpractice.controller;
+package com.example.ledgerpractice.ledger;
 
 import com.example.ledgerpractice.account.AccountRepository;
 import com.example.ledgerpractice.journal.JournalEntry;
-import com.example.ledgerpractice.ledger.LedgerService;
-import com.example.ledgerpractice.ledger.UnbalancedJournalEntryException;
 import com.example.ledgerpractice.transfer.JournalLineRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
