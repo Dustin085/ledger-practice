@@ -35,7 +35,7 @@ public class JournalEntryController {
 
     @GetMapping("/{id}")
     public String findById(@PathVariable Long id, Model model) {
-        JournalEntry journalEntry = journalEntryRepository.findById(id)
+        JournalEntry journalEntry = journalEntryRepository.findWithLinesById(id)
                 .orElseThrow(() -> new NoSuchElementException("JournalEntry with id " + id + " not found"));
         model.addAttribute("journalEntry", journalEntry);
         return "pages/journal-entries/detail";
