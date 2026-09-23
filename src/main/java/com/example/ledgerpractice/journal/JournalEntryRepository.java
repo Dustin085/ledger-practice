@@ -11,6 +11,8 @@ import java.util.Optional;
 public interface JournalEntryRepository extends JpaRepository<JournalEntry, Long> {
     List<JournalEntry> findByStatus(JournalEntryStatus status, Sort sort);
 
+    List<JournalEntry> findAllByReversalOfEntryId(Long reversalOfEntryId);
+
     @Query("SELECT DISTINCT je FROM JournalEntry je " +
             "LEFT JOIN FETCH je.lines l " +
             "LEFT JOIN FETCH l.account a " +
