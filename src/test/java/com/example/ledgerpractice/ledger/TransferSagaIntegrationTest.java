@@ -13,6 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
@@ -31,6 +32,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 // @Transactional，initiateTransfer() 的寫入會停在外層測試交易裡沒有 commit，
 // submit() 那個獨立連線的新交易在 READ_COMMITTED 下看不到，找不到 request。
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
+@ActiveProfiles("test")
 class TransferSagaIntegrationTest {
 
     @Autowired
