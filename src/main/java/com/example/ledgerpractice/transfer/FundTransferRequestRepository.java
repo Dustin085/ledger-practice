@@ -26,5 +26,7 @@ public interface FundTransferRequestRepository extends JpaRepository<FundTransfe
 
     List<FundTransferRequest> findByStatus(TransferStatus status);
 
+    long countByStatus(TransferStatus status);
+
     List<FundTransferRequest> findByStatusAndLastAttemptAtBefore(TransferStatus status, Instant cutoff);
 }

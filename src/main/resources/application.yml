@@ -47,6 +47,12 @@ spring:
           multiplier: 2
           max-attempts: 5
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics
+
 outbox:
   relay:
     batch-size: 100

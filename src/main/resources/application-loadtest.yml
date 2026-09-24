@@ -1,0 +1,18 @@
+# 壓測用 profile：啟動時加 --spring.profiles.active=loadtest。
+# 目的是拿掉「只在開發時才需要、會嚴重拖慢吞吐量」的東西，量到的才是應用本身的極限。
+spring:
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+  thymeleaf:
+    cache: true
+  h2:
+    console:
+      enabled: false
+
+logging:
+  level:
+    root: WARN
+    com.example.ledgerpractice: INFO
