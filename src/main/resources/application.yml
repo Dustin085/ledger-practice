@@ -5,6 +5,13 @@ spring:
   thymeleaf:
     cache: false
 
+  # 預設只有 1 條排程執行緒，OutboxRelay、對帳等 @Scheduled 任務會互相排隊；
+  # 其中一個卡在等外部回應時，其他任務也跟著延後。
+  task:
+    scheduling:
+      pool:
+        size: 3
+
   datasource:
     driver-class-name: org.h2.Driver
     username: 'sa'
@@ -28,6 +35,10 @@ spring:
     port: 5672
     username: guest
     password: guest
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
     listener:
       simple:
         retry:
@@ -35,6 +46,11 @@ spring:
           initial-interval: 2s
           multiplier: 2
           max-attempts: 5
+
+outbox:
+  relay:
+    batch-size: 100
+    confirm-timeout: 5s
 
 reconciliation:
   stale-after: 10m

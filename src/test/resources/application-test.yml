@@ -4,7 +4,9 @@ outbox:
 
 reconciliation:
   enabled: false
-  stale-after: 0s
+  # 故意用負值：讓剛送出的轉帳一定被視為逾時。用 0s 的話，送出時間與對帳取「現在」的時間
+  # 在暖機後的 JVM 可能相等，嚴格小於的條件不成立，測試會偶發失敗。
+  stale-after: -1s
 
 spring:
   rabbitmq:
