@@ -141,4 +141,63 @@ class TransferResultServiceTest {
         verify(compensationService).compensate(request);
         verify(inboxEventRepository).save(any());
     }
+
+    @Test
+    void confirmWhenAlreadyConfirmedIsTreatedAsSuccessAndRecordsEvent() {
+        FundTransferRequest request = submittedRequest();
+        request.setStatus(TransferStatus.CONFIRMED);
+        when(inboxEventRepository.findByExternalEventId("late-evt")).thenReturn(Optional.empty());
+        when(fundTransferRequestRepository.findByExternalReferenceIdForUpdate("MOCK-ref"))
+                .thenReturn(Optional.of(request));
+
+        transferResultService.confirm("MOCK-ref", "late-evt");
+
+        assertThat(request.getStatus()).isEqualTo(TransferStatus.CONFIRMED);
+        verify(inboxEventRepository).save(any());
+        verifyNoInteractions(compensationService);
+    }
+
+    @Test
+    void confirmWhenAlreadyCompensatedIsAConflictAndThrows() {
+        FundTransferRequest request = submittedRequest();
+        request.setStatus(TransferStatus.COMPENSATED);
+        when(inboxEventRepository.findByExternalEventId("evt-x")).thenReturn(Optional.empty());
+        when(fundTransferRequestRepository.findByExternalReferenceIdForUpdate("MOCK-ref"))
+                .thenReturn(Optional.of(request));
+
+        assertThatThrownBy(() -> transferResultService.confirm("MOCK-ref", "evt-x"))
+                .isInstanceOf(IllegalStateException.class);
+
+        assertThat(request.getStatus()).isEqualTo(TransferStatus.COMPENSATED);
+        verify(inboxEventRepository, never()).save(any());
+    }
+
+    @Test
+    void failWhenAlreadyCompensatedIsTreatedAsSuccessAndDoesNotCompensateAgain() {
+        FundTransferRequest request = submittedRequest();
+        request.setStatus(TransferStatus.COMPENSATED);
+        when(inboxEventRepository.findByExternalEventId("late-evt")).thenReturn(Optional.empty());
+        when(fundTransferRequestRepository.findByExternalReferenceIdForUpdate("MOCK-ref"))
+                .thenReturn(Optional.of(request));
+
+        transferResultService.fail("MOCK-ref", "late-evt");
+
+        verify(inboxEventRepository).save(any());
+        verifyNoInteractions(compensationService);
+    }
+
+    @Test
+    void failWhenAlreadyConfirmedIsAConflictAndThrows() {
+        FundTransferRequest request = submittedRequest();
+        request.setStatus(TransferStatus.CONFIRMED);
+        when(inboxEventRepository.findByExternalEventId("evt-y")).thenReturn(Optional.empty());
+        when(fundTransferRequestRepository.findByExternalReferenceIdForUpdate("MOCK-ref"))
+                .thenReturn(Optional.of(request));
+
+        assertThatThrownBy(() -> transferResultService.fail("MOCK-ref", "evt-y"))
+                .isInstanceOf(IllegalStateException.class);
+
+        verifyNoInteractions(compensationService);
+        verify(inboxEventRepository, never()).save(any());
+    }
 }

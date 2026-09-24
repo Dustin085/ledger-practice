@@ -36,6 +36,13 @@ public class TransferResultService {
         if (alreadyProcessed(externalEventId)) {
             return;
         }
+        // 已經是同樣的終態：例如對帳先查到結果並處理完，真正的 callback 才姍姍來遲。
+        // 結果一致，視為成功，只補記這個事件已處理；若是「衝突的終態」（例如已補償卻又說成功）
+        // 則不在這裡放行，交給 requireSubmitted 丟例外，因為那是需要人看的帳務異常。
+        if (request.getStatus() == TransferStatus.CONFIRMED) {
+            recordInboxEvent(externalEventId, "TransferConfirmed", request.getId());
+            return;
+        }
         requireSubmitted(request, externalReferenceId);
 
         request.setStatus(TransferStatus.CONFIRMED);
@@ -48,6 +55,10 @@ public class TransferResultService {
     public void fail(String externalReferenceId, String externalEventId) {
         FundTransferRequest request = lockRequest(externalReferenceId);
         if (alreadyProcessed(externalEventId)) {
+            return;
+        }
+        if (request.getStatus() == TransferStatus.COMPENSATED) {
+            recordInboxEvent(externalEventId, "TransferFailed", request.getId());
             return;
         }
         requireSubmitted(request, externalReferenceId);

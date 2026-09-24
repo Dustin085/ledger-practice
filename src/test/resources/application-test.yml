@@ -2,6 +2,10 @@ outbox:
   relay:
     enabled: false
 
+reconciliation:
+  enabled: false
+  stale-after: 0s
+
 spring:
   rabbitmq:
     listener:

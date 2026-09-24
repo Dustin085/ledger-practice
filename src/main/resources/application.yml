@@ -36,6 +36,10 @@ spring:
           multiplier: 2
           max-attempts: 5
 
+reconciliation:
+  stale-after: 10m
+  interval-ms: 60000
+
 settlement:
   webhook:
     secret: dev-shared-secret

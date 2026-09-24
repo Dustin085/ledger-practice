@@ -35,7 +35,7 @@ public class TransferSubmissionService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public SubmitOutcome submit(Long fundTransferRequestId) {
         FundTransferRequest request = fundTransferRequestRepository.findByIdForUpdate(fundTransferRequestId)
-                .orElseThrow(() -> new FundTransferRequestNotFoundException(fundTransferRequestId));
+                .orElseThrow(() -> FundTransferRequestNotFoundException.byId(fundTransferRequestId));
         if (request.getStatus() != TransferStatus.CREATED) {
             return SubmitOutcome.ALREADY_HANDLED;
         }
