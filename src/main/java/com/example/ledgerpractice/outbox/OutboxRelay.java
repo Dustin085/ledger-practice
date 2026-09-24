@@ -9,7 +9,7 @@ import tools.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.util.List;
 
-import static com.example.ledgerpractice.outbox.RabbitConfig.EXCHANGE_NAME;
+import static com.example.ledgerpractice.outbox.RabbitConfig.OUTBOX_EXCHANGE_NAME;
 
 @Component
 @ConditionalOnProperty(name = "outbox.relay.enabled", havingValue = "true", matchIfMissing = true)
@@ -30,7 +30,7 @@ public class OutboxRelay {
         for (OutboxEvent outboxEvent : outboxEvents) {
             FundTransferRequestedPayload payload = objectMapper.readValue(outboxEvent.getPayload(), FundTransferRequestedPayload.class);
             rabbitTemplate.convertAndSend(
-                    EXCHANGE_NAME,
+                    OUTBOX_EXCHANGE_NAME,
                     outboxEvent.getAggregateType() + "." + outboxEvent.getEventType(),
                     payload
             );

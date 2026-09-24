@@ -10,6 +10,10 @@
 
     <h2>已送出外部金流請求列表</h2>
 
+    <div th:if="${infoMessage}" style="color:green;">
+        <p th:text="${infoMessage}"></p>
+    </div>
+
     <div th:if="${errorMessage}" style="color:red;">
         <p th:text="${errorMessage}"></p>
     </div>
