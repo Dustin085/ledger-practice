@@ -5,31 +5,42 @@ import com.example.ledgerpractice.outbox.TransferResultMessage;
 import com.example.ledgerpractice.transfer.FundTransferRequest;
 import com.example.ledgerpractice.transfer.FundTransferRequestRepository;
 import com.example.ledgerpractice.transfer.TransferStatus;
-import lombok.RequiredArgsConstructor;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import com.example.ledgerpractice.webhook.WebhookSigner;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
 import java.util.UUID;
 
-import static com.example.ledgerpractice.outbox.RabbitConfig.EXTERNAL_SETTLEMENT_EXCHANGE_NAME;
-import static com.example.ledgerpractice.outbox.RabbitConfig.TRANSFER_CONFIRMED_ROUTING_KEY;
-import static com.example.ledgerpractice.outbox.RabbitConfig.TRANSFER_FAILED_ROUTING_KEY;
-
-// 這個 controller 扮演「外部系統」：它決定事件 id 並把結果發布出去，
-// 我們自己的 TransferResultListener 才是接收端（Inbox 那一側）。
+// 這個 controller 扮演「外部金流系統」：畫面上的按鈕會用 HTTP 打我們自己的
+// /webhooks/settlement，跟真實外部系統打 callback 的路徑完全一樣，事件 id 與簽章都由這一端決定。
 @Controller
 @RequestMapping("/transfers")
-@RequiredArgsConstructor
 public class TransferSimulationController {
     private final FundTransferRequestRepository fundTransferRequestRepository;
-    private final RabbitTemplate rabbitTemplate;
+    private final WebhookSigner webhookSigner;
+    private final ObjectMapper objectMapper;
+    private final RestClient restClient;
+
+    public TransferSimulationController(
+            FundTransferRequestRepository fundTransferRequestRepository,
+            WebhookSigner webhookSigner,
+            ObjectMapper objectMapper,
+            @Value("http://localhost:${server.port:8080}") String selfBaseUrl) {
+        this.fundTransferRequestRepository = fundTransferRequestRepository;
+        this.webhookSigner = webhookSigner;
+        this.objectMapper = objectMapper;
+        this.restClient = RestClient.builder().baseUrl(selfBaseUrl).build();
+    }
 
     @GetMapping("/pending")
     public String findPendingTransferRequests(Model model) {
@@ -40,22 +51,30 @@ public class TransferSimulationController {
 
     @PostMapping("/{externalReferenceId}/confirm")
     public String confirmTransfer(@PathVariable String externalReferenceId, RedirectAttributes redirectAttributes) {
-        publishResult(externalReferenceId, TransferResult.CONFIRMED, TRANSFER_CONFIRMED_ROUTING_KEY);
-        redirectAttributes.addFlashAttribute("infoMessage", "已送出「確認」通知，處理是非同步的，稍後重新整理查看結果");
+        callWebhook(externalReferenceId, TransferResult.CONFIRMED, "確認", redirectAttributes);
         return "redirect:/transfers/pending";
     }
 
     @PostMapping("/{externalReferenceId}/fail")
     public String failTransfer(@PathVariable String externalReferenceId, RedirectAttributes redirectAttributes) {
-        publishResult(externalReferenceId, TransferResult.FAILED, TRANSFER_FAILED_ROUTING_KEY);
-        redirectAttributes.addFlashAttribute("infoMessage", "已送出「失敗」通知，處理是非同步的，稍後重新整理查看結果");
+        callWebhook(externalReferenceId, TransferResult.FAILED, "失敗", redirectAttributes);
         return "redirect:/transfers/pending";
     }
 
-    private void publishResult(String externalReferenceId, TransferResult result, String routingKey) {
-        rabbitTemplate.convertAndSend(
-                EXTERNAL_SETTLEMENT_EXCHANGE_NAME,
-                routingKey,
+    private void callWebhook(String externalReferenceId, TransferResult result, String label, RedirectAttributes redirectAttributes) {
+        String body = objectMapper.writeValueAsString(
                 new TransferResultMessage(externalReferenceId, UUID.randomUUID().toString(), result));
+        try {
+            restClient.post()
+                    .uri("/webhooks/settlement")
+                    .header(WebhookSigner.SIGNATURE_HEADER, webhookSigner.sign(body))
+                    .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve()
+                    .toBodilessEntity();
+            redirectAttributes.addFlashAttribute("infoMessage", "已送出「" + label + "」通知，處理是非同步的，稍後重新整理查看結果");
+        } catch (RestClientException e) {
+            redirectAttributes.addFlashAttribute("errorMessage", "webhook 呼叫失敗：" + e.getMessage());
+        }
     }
 }

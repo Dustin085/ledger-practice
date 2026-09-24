@@ -60,12 +60,17 @@ class TransferResultServiceTest {
 
     @Test
     void confirmAlreadyProcessedDoesNothing() {
+        FundTransferRequest request = submittedRequest();
+        when(fundTransferRequestRepository.findByExternalReferenceIdForUpdate("MOCK-ref"))
+                .thenReturn(Optional.of(request));
         when(inboxEventRepository.findByExternalEventId("evt-1"))
                 .thenReturn(Optional.of(InboxEvent.builder().externalEventId("evt-1").build()));
 
         transferResultService.confirm("MOCK-ref", "evt-1");
 
-        verifyNoInteractions(fundTransferRequestRepository, compensationService);
+        assertThat(request.getStatus()).isEqualTo(TransferStatus.SUBMITTED);
+        assertThat(request.getJournalEntry().getStatus()).isEqualTo(JournalEntryStatus.PENDING);
+        verifyNoInteractions(compensationService);
         verify(inboxEventRepository, never()).save(any());
     }
 
@@ -86,7 +91,6 @@ class TransferResultServiceTest {
 
     @Test
     void confirmRequestNotFoundThrowsIllegalArgumentException() {
-        when(inboxEventRepository.findByExternalEventId("evt-1")).thenReturn(Optional.empty());
         when(fundTransferRequestRepository.findByExternalReferenceIdForUpdate("MOCK-ref"))
                 .thenReturn(Optional.empty());
 
@@ -112,12 +116,16 @@ class TransferResultServiceTest {
 
     @Test
     void failAlreadyProcessedDoesNothing() {
+        FundTransferRequest request = submittedRequest();
+        when(fundTransferRequestRepository.findByExternalReferenceIdForUpdate("MOCK-ref"))
+                .thenReturn(Optional.of(request));
         when(inboxEventRepository.findByExternalEventId("evt-2"))
                 .thenReturn(Optional.of(InboxEvent.builder().externalEventId("evt-2").build()));
 
         transferResultService.fail("MOCK-ref", "evt-2");
 
-        verifyNoInteractions(fundTransferRequestRepository, compensationService);
+        assertThat(request.getStatus()).isEqualTo(TransferStatus.SUBMITTED);
+        verifyNoInteractions(compensationService);
         verify(inboxEventRepository, never()).save(any());
     }
 

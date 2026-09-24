@@ -36,6 +36,10 @@ spring:
           multiplier: 2
           max-attempts: 5
 
+settlement:
+  webhook:
+    secret: dev-shared-secret
+
 mybatis:
   mapper-locations: classpath:mapper/*.xml
   configuration:
