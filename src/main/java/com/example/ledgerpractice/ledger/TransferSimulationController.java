@@ -18,6 +18,7 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import tools.jackson.databind.ObjectMapper;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -64,10 +65,12 @@ public class TransferSimulationController {
     private void callWebhook(String externalReferenceId, TransferResult result, String label, RedirectAttributes redirectAttributes) {
         String body = objectMapper.writeValueAsString(
                 new TransferResultMessage(externalReferenceId, UUID.randomUUID().toString(), result));
+        long timestamp = Instant.now().getEpochSecond();
         try {
             restClient.post()
                     .uri("/webhooks/settlement")
-                    .header(WebhookSigner.SIGNATURE_HEADER, webhookSigner.sign(body))
+                    .header(WebhookSigner.TIMESTAMP_HEADER, String.valueOf(timestamp))
+                    .header(WebhookSigner.SIGNATURE_HEADER, webhookSigner.sign(timestamp, body))
                     .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
                     .body(body)
                     .retrieve()

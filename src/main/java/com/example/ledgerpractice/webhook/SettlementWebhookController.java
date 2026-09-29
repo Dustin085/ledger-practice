@@ -34,9 +34,10 @@ public class SettlementWebhookController {
     @PostMapping
     public ResponseEntity<Void> receive(
             @RequestBody String rawBody,
-            @RequestHeader(value = WebhookSigner.SIGNATURE_HEADER, required = false) String signature) {
+            @RequestHeader(value = WebhookSigner.SIGNATURE_HEADER, required = false) String signature,
+            @RequestHeader(value = WebhookSigner.TIMESTAMP_HEADER, required = false) String timestamp) {
 
-        if (!webhookSigner.verify(rawBody, signature)) {
+        if (!webhookSigner.verify(timestamp, rawBody, signature)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 

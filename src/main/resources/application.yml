@@ -65,6 +65,7 @@ reconciliation:
 settlement:
   webhook:
     secret: dev-shared-secret
+    timestamp-tolerance: 5m
 
 mybatis:
   mapper-locations: classpath:mapper/*.xml

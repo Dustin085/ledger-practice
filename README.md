@@ -80,18 +80,25 @@ docker compose up -d                 # 啟動 RabbitMQ
 `SettlementWebhookController`（`POST /webhooks/settlement`）扮演的是外部金流系統打進來的 callback
 入口，`TransferSimulationController` 平常用 HTTP 模擬這個角色（畫面上「模擬成功/失敗」按鈕）。想直接
 手動送一個真的簽章正確的請求驗證行為，簽章密鑰預設是 `application.yml` 裡的
-`settlement.webhook.secret`（`dev-shared-secret`）：
+`settlement.webhook.secret`（`dev-shared-secret`）。
+
+**簽章要對「時間戳記 + body」一起算**（防重放：時間戳記本身也要被簽進去保護，不然可以把舊請求的
+時間戳記直接換成現在的值繞過過期檢查），格式是 `<epoch 秒數>.<body>`，時間戳記另外用
+`X-Signature-Timestamp` 標頭帶，容許誤差是 `settlement.webhook.timestamp-tolerance`（預設 5 分鐘）：
 
 ```bash
 REF=MOCK-xxx   # 從 /transfers/pending 頁面複製一筆真實存在的 externalReferenceId
 BODY="{\"externalReferenceId\":\"$REF\",\"externalEventId\":\"evt-1\",\"result\":\"CONFIRMED\"}"
-SIG=$(printf '%s' "$BODY" | openssl dgst -sha256 -hmac dev-shared-secret | awk '{print $NF}')
+TS=$(date +%s)
+SIG=$(printf '%s.%s' "$TS" "$BODY" | openssl dgst -sha256 -hmac dev-shared-secret | awk '{print $NF}')
 curl -X POST http://localhost:8111/webhooks/settlement \
-  -H "Content-Type: application/json" -H "X-Signature: $SIG" -d "$BODY"
+  -H "Content-Type: application/json" \
+  -H "X-Signature-Timestamp: $TS" -H "X-Signature: $SIG" -d "$BODY"
 ```
 
-用同一個 `externalEventId` 再送一次，可以驗證 Inbox 去重真的擋住重複處理（第二次一樣回 200，但轉帳
-狀態不會被動第二次）。`externalReferenceId` 如果是隨機亂填、不存在的值，訊息會在
+用同一個 `externalEventId` 再送一次（`TS`/`SIG` 都保持不變，在容許誤差內），可以驗證 Inbox 去重真的
+擋住重複處理（第二次一樣回 200，但轉帳狀態不會被動第二次）；改用一個超過 5 分鐘前的 `TS` 重算簽章
+再送，則會直接被拒絕成 401，驗證防重放生效。`externalReferenceId` 如果是隨機亂填、不存在的值，訊息會在
 `TransferResultListener` 重試耗盡後進 `transfer.result.inbox.dlq`。
 
 ## 壓測（Load Testing）

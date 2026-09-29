@@ -58,6 +58,7 @@
             <stringProp name="parameters"></stringProp>
             <stringProp name="script">import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
+import java.time.Instant
 
 def refId = &quot;LOADTEST-&quot; + UUID.randomUUID()
 def eventId = UUID.randomUUID().toString()
@@ -65,13 +66,19 @@ def result = &quot;CONFIRMED&quot;
 
 def body = &quot;{\&quot;externalReferenceId\&quot;:\&quot;${refId}\&quot;,\&quot;externalEventId\&quot;:\&quot;${eventId}\&quot;,\&quot;result\&quot;:\&quot;${result}\&quot;}&quot;
 
+// 注意：不要用 System.currentTimeMillis() / 1000L 算秒數，Groovy 的 / 在整數不能整除時
+// 會回傳 BigDecimal（例如 1234.567），不是像 Java 那樣無條件捨去，會跟伺服器端 Long.parseLong 對不上。
+def timestamp = Instant.now().getEpochSecond().toString()
+def signedContent = timestamp + &quot;.&quot; + body
+
 def secret = vars.get(&quot;secret&quot;) ?: &quot;dev-shared-secret&quot;
 def mac = Mac.getInstance(&quot;HmacSHA256&quot;)
 mac.init(new SecretKeySpec(secret.getBytes(&quot;UTF-8&quot;), &quot;HmacSHA256&quot;))
-def digest = mac.doFinal(body.getBytes(&quot;UTF-8&quot;))
+def digest = mac.doFinal(signedContent.getBytes(&quot;UTF-8&quot;))
 def signature = digest.collect { String.format(&quot;%02x&quot;, it) }.join(&quot;&quot;)
 
 vars.put(&quot;webhookBody&quot;, body)
+vars.put(&quot;webhookTimestamp&quot;, timestamp)
 vars.put(&quot;webhookSignature&quot;, signature)</stringProp>
             <stringProp name="scriptLanguage">groovy</stringProp>
           </JSR223PreProcessor>
@@ -81,6 +88,10 @@ vars.put(&quot;webhookSignature&quot;, signature)</stringProp>
               <elementProp name="" elementType="Header">
                 <stringProp name="Header.name">Content-Type</stringProp>
                 <stringProp name="Header.value">application/json</stringProp>
+              </elementProp>
+              <elementProp name="" elementType="Header">
+                <stringProp name="Header.name">X-Signature-Timestamp</stringProp>
+                <stringProp name="Header.value">${webhookTimestamp}</stringProp>
               </elementProp>
               <elementProp name="" elementType="Header">
                 <stringProp name="Header.name">X-Signature</stringProp>

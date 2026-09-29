@@ -86,9 +86,8 @@ class LedgerControllerTest {
                         .param("lines[1].accountId", "2")
                         .param("lines[1].debitAmount", "0")
                         .param("lines[1].creditAmount", "1000"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("pages/journal-entries/detail"))
-                .andExpect(model().attribute("journalEntry", journalEntry));
+                .andExpect(status().is3xxRedirection())
+                .andExpect(view().name("redirect:/journal-entries/1"));
     }
 
     @Test

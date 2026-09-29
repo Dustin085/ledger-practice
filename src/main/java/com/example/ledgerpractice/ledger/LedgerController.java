@@ -61,8 +61,7 @@ public class LedgerController {
                     form.getDescription(),
                     lines,
                     form.getExternalCounterparty());
-            model.addAttribute("journalEntry", journalEntry);
-            return "pages/journal-entries/detail";
+            return "redirect:/journal-entries/" + journalEntry.getId();
         } catch (UnbalancedJournalEntryException | IllegalArgumentException | IllegalStateException e) {
             // 比照 JSP-practice 的做法：驗證失敗時不清空使用者輸入，重新渲染同一個 form
             // （transferForm 已經是這個 method 的參數，Spring 會自動放回 Model）。
