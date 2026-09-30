@@ -37,10 +37,11 @@ MyBatis 手寫 SQL），Thymeleaf 樣板，H2（開發/測試用記憶體資料�
 | `ledger` | 核心業務邏輯：`LedgerService`（建立分錄）、Saga 相關 service（送出/確認/補償/對帳） |
 | `transfer` | 資金轉帳請求（`FundTransferRequest`），Saga 的持久化狀態機 |
 | `payment` | 外部金流閘道的介面與 mock 實作 |
-| `outbox` | Outbox/Inbox 事件、RabbitMQ topology 設定、`OutboxRelay` |
+| `outbox` | Outbox/Inbox 事件、RabbitMQ topology 設定、`OutboxRelay`、`DeadLetterQueueService` |
 | `webhook` | 外部系統 callback 入口與簽章驗證 |
 | `report` | MyBatis 寫的試算表查詢 |
 | `metrics` | 自訂 Actuator 指標（Outbox 積壓、轉帳狀態統計） |
+| `admin` | DLQ 管理頁面（peek / 重新處理 / 丟棄） |
 | `config` | 種子資料 |
 
 ## 快速開始
@@ -55,6 +56,7 @@ docker compose up -d                 # 啟動 RabbitMQ
 - `http://localhost:8080/journal-entries`：分錄列表
 - `http://localhost:8080/transfers/pending`：等待外部確認的轉帳，有按鈕可以模擬外部回覆
 - `http://localhost:8080/report/trial-balance`：試算表
+- `http://localhost:8080/admin/dead-letters`：DLQ 管理頁面
 - `http://localhost:15672`（帳密 `guest`/`guest`）：RabbitMQ 管理介面
 
 ## 測試
@@ -74,6 +76,19 @@ docker compose up -d                 # 啟動 RabbitMQ
 - **整合測試**（`@SpringBootTest`）：`TransferSagaIntegrationTest`（走完整條 saga）、
   `TransferReconciliationIntegrationTest`（對帳）、`TransferResultConcurrencyTest`
   （併發送同一個 callback 兩次，斷言只處理一次、不會有其中一邊丟例外）。
+
+**例外：`DeadLetterQueueServiceTest` 標了 `@Tag("requires-rabbitmq")`，預設不會跑**（`pom.xml` 的
+`maven-surefire-plugin` 設了 `excludedGroups`）。這支測試會直接用 `basicGet`/`basicAck`/`basicNack`
+操作真正的 DLQ，`mvn test` 對大多數人不該要求先開 Docker，所以排除在預設範圍外；要跑它，先
+`docker compose up -d`，再：
+
+```bash
+./mvnw.cmd test -Dsurefire.excludedGroups=
+```
+
+**注意：這支測試會清空 `fund-transfer.requested.submission` / `.submission.dlq` 這兩個 queue**（每個
+測試前後都會 purge，確保測試互相獨立）。如果當下正在手動測試 DLQ 管理頁面、佇列裡有想保留的訊息，
+先不要跑這支測試，會被清空。
 
 ### 手動測試 Inbox webhook
 
@@ -100,6 +115,23 @@ curl -X POST http://localhost:8080/webhooks/settlement \
 擋住重複處理（第二次一樣回 200，但轉帳狀態不會被動第二次）；改用一個超過 5 分鐘前的 `TS` 重算簽章
 再送，則會直接被拒絕成 401，驗證防重放生效。`externalReferenceId` 如果是隨機亂填、不存在的值，訊息會在
 `TransferResultListener` 重試耗盡後進 `transfer.result.inbox.dlq`。
+
+### DLQ 重新處理工具
+
+`fund-transfer.requested.submission.dlq`、`transfer.result.inbox.dlq` 這兩個死信佇列，原本只能用
+RabbitMQ 管理介面看，現在 `http://localhost:8080/admin/dead-letters` 提供三個操作，兩個 DLQ 共用同一套
+邏輯（`DeadLetterQueueService`）：
+
+- **筆數 + 預覽下一筆**：直接查佇列目前積了幾筆，並且不拿走地看一眼最前面那筆的內容跟 `x-death`
+  標頭（原因、死幾次）。
+- **重新處理**：把最前面那筆送回原本的 queue（從 `x-death` 自動判斷要送回哪裡，不用自己對照），
+  重新走一次正常流程。
+- **丟棄**：直接永久移除，不重送。
+
+**重新處理不保證成功**：這個工具只是「再給訊息一次機會」，不會、也沒辦法修正當初讓它死掉的根本原因。
+如果原因還在（例如 `externalReferenceId` 本來就是隨機亂填、資料庫裡根本不存在），重新處理只會讓它照
+一樣的路徑再失敗一次，被丟回 DLQ——這是預期行為，不是 bug。只有在根本原因已經解決的情況下（例如外部
+系統當時暫時斷線，現在已經恢復），重新處理才會真的成功。
 
 ## 壓測（Load Testing）
 

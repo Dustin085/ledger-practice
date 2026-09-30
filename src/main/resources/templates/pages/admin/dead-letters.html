@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}" lang="zh-TW">
+<head>
+    <title>死信佇列管理</title>
+</head>
+<body layout:fragment="content">
+<h1>死信佇列（DLQ）管理</h1>
+
+<div th:if="${infoMessage}" style="color:green;">
+    <p th:text="${infoMessage}"></p>
+</div>
+
+<div th:if="${errorMessage}" style="color:red;">
+    <p th:text="${errorMessage}"></p>
+</div>
+
+<h2>Submission DLQ</h2>
+<p>目前筆數：<span th:text="${submissionCount}"></span></p>
+
+<div th:if="${submissionNext != null}">
+    <p>下一筆內容：</p>
+    <pre th:text="${submissionNext.body}"></pre>
+    <p>x-death 原因：<span th:text="${submissionNext.headers.get('x-death')[0].get('reason')}"></span>，
+        第 <span th:text="${submissionNext.headers.get('x-death')[0].get('count')}"></span> 次死亡</p>
+
+    <form method="post" th:action="@{/admin/dead-letters/submission/reprocess}" style="display:inline;">
+        <button type="submit">重新處理</button>
+    </form>
+    <form method="post" th:action="@{/admin/dead-letters/submission/discard}" style="display:inline;">
+        <button type="submit">丟棄</button>
+    </form>
+</div>
+<div th:if="${submissionNext == null}">
+    <p>目前沒有訊息</p>
+</div>
+
+<h2>Inbox DLQ</h2>
+<p>目前筆數：<span th:text="${inboxCount}"></span></p>
+
+<div th:if="${inboxNext != null}">
+    <p>下一筆內容：</p>
+    <pre th:text="${inboxNext.body}"></pre>
+    <p>x-death 原因：<span th:text="${inboxNext.headers.get('x-death')[0].get('reason')}"></span>，
+        第 <span th:text="${inboxNext.headers.get('x-death')[0].get('count')}"></span> 次死亡</p>
+
+    <form method="post" th:action="@{/admin/dead-letters/inbox/reprocess}" style="display:inline;">
+        <button type="submit">重新處理</button>
+    </form>
+    <form method="post" th:action="@{/admin/dead-letters/inbox/discard}" style="display:inline;">
+        <button type="submit">丟棄</button>
+    </form>
+</div>
+<div th:if="${inboxNext == null}">
+    <p>目前沒有訊息</p>
+</div>
+</body>
+</html>
