@@ -9,6 +9,9 @@
       curl http://localhost:8111/actuator/metrics/ledger.outbox.oldest.unpublished.age.seconds
   - 這支腳本沒有用到 JSR223/Groovy，不會踩到 call-webhook.jmx 那個 JDK 版本問題，
     用系統預設的 java 執行 jmeter 就可以。
+  - POST /journal-entries 現在用 PRG（建立成功回 302 redirect 到 GET 詳細頁），sampler 必須開
+    follow_redirects，不然 assertion 找不到「分錄明細」字樣，非 GUI 模式下全部請求都會判定失敗
+    （response body 是 null）。
   - 參數（-Jxxx=yyy）：threads、ramp、duration（跑幾秒）、port、host、payrollAccountId、bankAccountId
 -->
 <jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
@@ -48,6 +51,7 @@
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="POST /journal-entries">
           <stringProp name="HTTPSampler.path">/journal-entries</stringProp>
           <stringProp name="HTTPSampler.method">POST</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
           <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
           <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
           <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="User Defined Variables">

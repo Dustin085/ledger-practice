@@ -165,3 +165,30 @@ curl http://localhost:8111/actuator/metrics/ledger.outbox.oldest.unpublished.age
 ### 判斷「瓶頸是伺服器還是壓測工具自己」的方法
 
 如果**單筆回應時間很快、但整體吞吐量卻很低**,兩者方向矛盾,通常代表瓶頸出在 JMeter 自己身上（例如用了很慢的直譯式腳本引擎),而不是被測系統。這個專案第一次量 webhook 吞吐量時就踩過這個坑：改用 BeanShell 繞過上面的 Groovy 問題後,量到 430 req/s、但單筆回應時間中位數只要 1ms；換回修好的 Groovy 之後,同樣條件下吞吐量變成 2,658 req/s——證實了之前的數字是被 BeanShell 直譯器拖累的假象,不是伺服器真正的極限。
+
+### 案例：`create-journal-entry.jmx` 量到的 2.7 秒尖峰,追到 HikariCP 連線池
+
+用 `create-journal-entry.jmx`（50 threads、60 秒）量「建立分錄（含外部轉帳）」這條路徑時,量到少數請求飆到 2.7 秒,但大多數都在幾十毫秒內完成——這種「極端值很極端、但中位數正常」的形狀,不會是程式邏輯本身變慢,通常是某個共用資源被搶光,一部分請求在排隊。
+
+**驗證方法**：寫一支小腳本,壓測的同時每 200ms 輪詢一次 Actuator 的 `hikaricp.connections.{active,idle,pending}`,把時間戳跟 JMeter 的 `results.jtl` 對齊。結果 `pending`（排隊等連線的數量）在整段測試期間都不是 0,一度衝到 21——代表 HikariCP 的連線池被打滿了。專案從來沒設定過 `spring.datasource.hikari.maximum-pool-size`,吃的是預設值 **10**。
+
+**修正**：在 `loadtest` profile 把 `maximum-pool-size` 調到 **30**,同條件重測：
+
+| | pool=10 | pool=30 |
+|---|---|---|
+| 60 秒總請求數 | 29,720 | **171,276**（5.8 倍） |
+| 平均回應時間 | 96ms | **33.5ms** |
+| 最慢回應 | 2927ms | **980ms** |
+| HikariCP `pending` | 一路都有,最高 21 | 幾乎全程 0 |
+
+拿掉連線池瓶頸後吞吐量不是線性提升、是跳了快 6 倍,證實原本大部分時間都花在「排隊等連線」，不是真的在做事。
+
+**跟 HikariCP 官方建議的公式對一下**：HikariCP wiki 給的經驗公式是
+
+```
+pool size = (core_count × 2) + effective_spindle_count
+```
+
+這台機器是 14 核（不算 hyperthreading）,H2 是純記憶體資料庫、沒有真正的磁碟 I/O，`effective_spindle_count` 可以視為 0，算出來是 `14 × 2 + 0 = 28`。我們憑經驗調的 30 幾乎正好卡在公式算出來的數字附近——但這不是嚴謹驗證：我們只測了 10 跟 30 兩個點,沒有掃過 20、25、28、40 這些中間值,不能說 28~30 就是真正的最佳值,只能說「大幅調大」這個方向是對的、而且湊巧跟公式對得上。等專案换成真的有磁碟 I/O 的資料庫（例如 Postgres）時，`effective_spindle_count` 就不會是 0 了，這條公式要重新算。
+
+**這支腳本也順便修了一個 bug**：PRG 上線後 `POST /journal-entries` 成功會回 302,但 sampler 沒開 `follow_redirects`,導致 assertion 找不到內容、100% 判定失敗——是這次診斷 pool size 問題時才發現壓測腳本早就跟著 PRG 一起壞掉了,已經修好。

@@ -11,6 +11,9 @@ spring:
   h2:
     console:
       enabled: false
+  datasource:
+    hikari:
+      maximum-pool-size: 30
 
 logging:
   level:
