@@ -47,14 +47,14 @@ MyBatis 手寫 SQL），Thymeleaf 樣板，H2（開發/測試用記憶體資料�
 
 ```bash
 docker compose up -d                 # 啟動 RabbitMQ
-./mvnw.cmd spring-boot:run "-Dspring-boot.run.arguments=--server.port=8111"
+./mvnw.cmd spring-boot:run
 ```
 
-（不要用 8080，容易跟本機其他服務衝突。）開機後可以看：
+預設用 8080。開機後可以看：
 
-- `http://localhost:8111/journal-entries`：分錄列表
-- `http://localhost:8111/transfers/pending`：等待外部確認的轉帳，有按鈕可以模擬外部回覆
-- `http://localhost:8111/report/trial-balance`：試算表
+- `http://localhost:8080/journal-entries`：分錄列表
+- `http://localhost:8080/transfers/pending`：等待外部確認的轉帳，有按鈕可以模擬外部回覆
+- `http://localhost:8080/report/trial-balance`：試算表
 - `http://localhost:15672`（帳密 `guest`/`guest`）：RabbitMQ 管理介面
 
 ## 測試
@@ -91,7 +91,7 @@ REF=MOCK-xxx   # 從 /transfers/pending 頁面複製一筆真實存在的 extern
 BODY="{\"externalReferenceId\":\"$REF\",\"externalEventId\":\"evt-1\",\"result\":\"CONFIRMED\"}"
 TS=$(date +%s)
 SIG=$(printf '%s.%s' "$TS" "$BODY" | openssl dgst -sha256 -hmac dev-shared-secret | awk '{print $NF}')
-curl -X POST http://localhost:8111/webhooks/settlement \
+curl -X POST http://localhost:8080/webhooks/settlement \
   -H "Content-Type: application/json" \
   -H "X-Signature-Timestamp: $TS" -H "X-Signature: $SIG" -d "$BODY"
 ```
