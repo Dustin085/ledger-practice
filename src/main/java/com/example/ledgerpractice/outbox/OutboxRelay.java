@@ -10,6 +10,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 import tools.jackson.databind.ObjectMapper;
@@ -48,9 +50,11 @@ public class OutboxRelay {
 
     @Async("outboxAsyncExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void onOutboxEventCreated(OutboxEventCreatedEvent event) {
-        outboxEventRepository.findById(event.outboxEventId())
-                .filter(e -> e.getPublishedAt() == null)
+        // findByIdAndPublishedAtIsNull 用 SKIP LOCKED 鎖列：如果排程那邊剛好也在處理
+        // 同一筆，這裡會直接查不到（不是卡住等待），什麼都不做，留給排程處理就好。
+        outboxEventRepository.findByIdAndPublishedAtIsNull(event.outboxEventId())
                 .ifPresent(this::publishSingle);
     }
 
@@ -66,7 +70,10 @@ public class OutboxRelay {
     }
 
     @Scheduled(fixedDelayString = "${outbox.relay.poll-interval-ms:30000}")
+    @Transactional
     public void relay() {
+        // 鎖要撐到這整輪發布完才能釋放，交易邊界故意跟著整個 for 迴圈走，不只包住查詢本身；
+        // 代價是這段期間會佔用一條 DB connection，包含逐筆等 RabbitMQ confirm 的時間。
         List<OutboxEvent> outboxEvents =
                 outboxEventRepository.findByPublishedAtIsNullOrderByIdAsc(PageRequest.of(0, batchSize));
         for (OutboxEvent outboxEvent : outboxEvents) {
@@ -117,8 +124,8 @@ public class OutboxRelay {
             throw new BrokerUnavailableException(e);
         }
 
-        if (!confirm.isAck()) {
-            throw new BrokerUnavailableException(new IllegalStateException("broker nack: " + confirm.getReason()));
+        if (!confirm.ack()) {
+            throw new BrokerUnavailableException(new IllegalStateException("broker nack: " + confirm.reason()));
         }
         // exchange 收到就會回 ack，就算沒有任何 queue 接得到；被 mandatory 退回的訊息會在 ack 之前
         // 先設定 returned，所以要另外檢查，否則「送進黑洞」也會被當成成功。
