@@ -76,14 +76,12 @@ public class TransferResultService {
 
     private FundTransferRequest lockRequest(String externalReferenceId) {
         return fundTransferRequestRepository.findByExternalReferenceIdForUpdate(externalReferenceId)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "FundTransferRequest not found for externalReferenceId: " + externalReferenceId));
+                .orElseThrow(() -> FundTransferRequestNotFoundException.byExternalReferenceId(externalReferenceId));
     }
 
     private void requireSubmitted(FundTransferRequest request, String externalReferenceId) {
         if (request.getStatus() != TransferStatus.SUBMITTED) {
-            throw new IllegalStateException(
-                    "Expected SUBMITTED but was " + request.getStatus() + " for externalReferenceId " + externalReferenceId);
+            throw new ConflictingTransferStateException(externalReferenceId, request.getStatus());
         }
     }
 

@@ -7,6 +7,7 @@ import java.math.BigDecimal;
 public class UnbalancedJournalEntryException extends RuntimeException {
 
     public UnbalancedJournalEntryException(BigDecimal totalDebit, BigDecimal totalCredit) {
-        super("借貸不平衡：借方合計 " + totalDebit + "，貸方合計 " + totalCredit);
+        super("Unbalanced journal entry: total debit " + totalDebit + " does not equal total credit " + totalCredit
+                + ". Check the submitted journal entry lines before retrying.");
     }
 }

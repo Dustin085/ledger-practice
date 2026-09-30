@@ -7,11 +7,12 @@ public class FundTransferRequestNotFoundException extends RuntimeException {
     }
 
     public static FundTransferRequestNotFoundException byId(Long id) {
-        return new FundTransferRequestNotFoundException("找不到 id 為: " + id + " 的金流請求");
+        return new FundTransferRequestNotFoundException("No FundTransferRequest found for id: " + id);
     }
 
     public static FundTransferRequestNotFoundException byExternalReferenceId(String externalReferenceId) {
         return new FundTransferRequestNotFoundException(
-                "找不到 externalReferenceId 為: " + externalReferenceId + " 的金流請求");
+                "No FundTransferRequest found for externalReferenceId: " + externalReferenceId
+                        + ". Verify the callback's reference matches a request created by this system before retrying.");
     }
 }

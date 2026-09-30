@@ -58,7 +58,7 @@ public class WebhookSigner {
             mac.init(new SecretKeySpec(secret, ALGORITHM));
             return HexFormat.of().formatHex(mac.doFinal(content.getBytes(StandardCharsets.UTF_8)));
         } catch (GeneralSecurityException e) {
-            throw new IllegalStateException("無法計算簽章", e);
+            throw new IllegalStateException("Unable to compute HMAC signature", e);
         }
     }
 

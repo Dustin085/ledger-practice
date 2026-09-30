@@ -90,18 +90,18 @@ class TransferResultServiceTest {
     }
 
     @Test
-    void confirmRequestNotFoundThrowsIllegalArgumentException() {
+    void confirmRequestNotFoundThrowsFundTransferRequestNotFoundException() {
         when(fundTransferRequestRepository.findByExternalReferenceIdForUpdate("MOCK-ref"))
                 .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> transferResultService.confirm("MOCK-ref", "evt-1"))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(FundTransferRequestNotFoundException.class);
 
         verify(inboxEventRepository, never()).save(any());
     }
 
     @Test
-    void confirmRequestNotSubmittedThrowsIllegalStateException() {
+    void confirmRequestNotSubmittedThrowsConflictingTransferStateException() {
         FundTransferRequest request = submittedRequest();
         request.setStatus(TransferStatus.CREATED);
         when(inboxEventRepository.findByExternalEventId("evt-1")).thenReturn(Optional.empty());
@@ -109,7 +109,12 @@ class TransferResultServiceTest {
                 .thenReturn(Optional.of(request));
 
         assertThatThrownBy(() -> transferResultService.confirm("MOCK-ref", "evt-1"))
-                .isInstanceOf(IllegalStateException.class);
+                .isInstanceOf(ConflictingTransferStateException.class)
+                .satisfies(e -> {
+                    ConflictingTransferStateException ex = (ConflictingTransferStateException) e;
+                    assertThat(ex.getExternalReferenceId()).isEqualTo("MOCK-ref");
+                    assertThat(ex.getActualStatus()).isEqualTo(TransferStatus.CREATED);
+                });
 
         verify(inboxEventRepository, never()).save(any());
     }
@@ -166,7 +171,7 @@ class TransferResultServiceTest {
                 .thenReturn(Optional.of(request));
 
         assertThatThrownBy(() -> transferResultService.confirm("MOCK-ref", "evt-x"))
-                .isInstanceOf(IllegalStateException.class);
+                .isInstanceOf(ConflictingTransferStateException.class);
 
         assertThat(request.getStatus()).isEqualTo(TransferStatus.COMPENSATED);
         verify(inboxEventRepository, never()).save(any());
@@ -195,7 +200,7 @@ class TransferResultServiceTest {
                 .thenReturn(Optional.of(request));
 
         assertThatThrownBy(() -> transferResultService.fail("MOCK-ref", "evt-y"))
-                .isInstanceOf(IllegalStateException.class);
+                .isInstanceOf(ConflictingTransferStateException.class);
 
         verifyNoInteractions(compensationService);
         verify(inboxEventRepository, never()).save(any());

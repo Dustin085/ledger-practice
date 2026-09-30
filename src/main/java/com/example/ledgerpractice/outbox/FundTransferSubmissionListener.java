@@ -1,6 +1,7 @@
 package com.example.ledgerpractice.outbox;
 
 import com.example.ledgerpractice.ledger.FundTransferRequestNotFoundException;
+import com.example.ledgerpractice.ledger.FundTransferSubmissionFailedException;
 import com.example.ledgerpractice.ledger.SubmitOutcome;
 import com.example.ledgerpractice.ledger.TransferSubmissionService;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +23,7 @@ public class FundTransferSubmissionListener {
         try {
             SubmitOutcome outcome = transferSubmissionService.submit(payload.transferRequestId());
             if (outcome == SubmitOutcome.FAILED) {
-                throw new RuntimeException("轉帳請求失敗， requestId= " + payload.transferRequestId());
+                throw new FundTransferSubmissionFailedException(payload.transferRequestId());
             }
             if (outcome == SubmitOutcome.GAVE_UP) {
                 log.warn("轉帳請求超過重試上限，已放棄並補償: requestId={}", payload.transferRequestId());

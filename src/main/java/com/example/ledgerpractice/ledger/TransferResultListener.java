@@ -21,7 +21,7 @@ public class TransferResultListener {
                 case CONFIRMED -> transferResultService.confirm(message.externalReferenceId(), message.externalEventId());
                 case FAILED -> transferResultService.fail(message.externalReferenceId(), message.externalEventId());
             }
-        } catch (IllegalArgumentException | IllegalStateException e) {
+        } catch (FundTransferRequestNotFoundException | ConflictingTransferStateException e) {
             throw new AmqpRejectAndDontRequeueException(e.getMessage(), e);
         }
     }

@@ -39,7 +39,7 @@ public class LedgerService {
             String externalCounterparty) {
 
         if (lines == null || lines.isEmpty()) {
-            throw new IllegalArgumentException("分錄至少要有一筆明細");
+            throw new IllegalArgumentException("A journal entry must have at least one line");
         }
 
         JournalEntry journalEntry = JournalEntry.builder()
@@ -54,7 +54,7 @@ public class LedgerService {
 
         for (JournalLineRequest line : lines) {
             Account account = accountRepository.findById(line.accountId())
-                    .orElseThrow(() -> new IllegalArgumentException("科目不存在：" + line.accountId()));
+                    .orElseThrow(() -> new IllegalArgumentException("Account not found: " + line.accountId()));
 
             JournalEntryLine journalEntryLine = JournalEntryLine.builder()
                     .account(account)
@@ -71,7 +71,7 @@ public class LedgerService {
                 if (externalAccount != null) {
                     // 先求端到端能動的垂直切片：目前只處理一筆分錄對應一個外部資金科目，
                     // 多筆外部腿的情境留到之後再擴充。
-                    throw new IllegalStateException("目前只支援一筆分錄對應一個外部資金科目");
+                    throw new IllegalStateException("Only one external settlement account is supported per journal entry");
                 }
                 externalAccount = account;
                 externalAmount = line.debitAmount().signum() != 0
