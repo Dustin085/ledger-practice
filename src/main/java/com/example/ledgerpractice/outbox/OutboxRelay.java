@@ -46,7 +46,7 @@ public class OutboxRelay {
         this.batchSize = batchSize;
     }
 
-    @Async
+    @Async("outboxAsyncExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onOutboxEventCreated(OutboxEventCreatedEvent event) {
         outboxEventRepository.findById(event.outboxEventId())
