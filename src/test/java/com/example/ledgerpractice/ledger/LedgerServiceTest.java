@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
@@ -39,6 +40,8 @@ class LedgerServiceTest {
     private OutboxEventRepository outboxEventRepository;
     @Mock
     private AccountRepository accountRepository;
+    @Mock
+    private ApplicationEventPublisher applicationEventPublisher;
 
     private LedgerService ledgerService;
 
@@ -48,7 +51,8 @@ class LedgerServiceTest {
                 fundTransferRequestRepository,
                 outboxEventRepository,
                 accountRepository,
-                new ObjectMapper());
+                new ObjectMapper(),
+                applicationEventPublisher);
     }
 
     @Test

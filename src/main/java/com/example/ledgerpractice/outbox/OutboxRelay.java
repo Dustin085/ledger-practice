@@ -7,8 +7,11 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.Duration;
@@ -43,7 +46,26 @@ public class OutboxRelay {
         this.batchSize = batchSize;
     }
 
-    @Scheduled(fixedDelay = 5000)
+    @Async
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onOutboxEventCreated(OutboxEventCreatedEvent event) {
+        outboxEventRepository.findById(event.outboxEventId())
+                .filter(e -> e.getPublishedAt() == null)
+                .ifPresent(this::publishSingle);
+    }
+
+    private void publishSingle(OutboxEvent outboxEvent) {
+        try {
+            if (publishAndAwaitConfirm(outboxEvent)) {
+                outboxEvent.setPublishedAt(Instant.now());
+                outboxEventRepository.save(outboxEvent);
+            }
+        } catch (RuntimeException e) {
+            log.warn("立即發布失敗，留給排程兜底，outboxEventId={}", outboxEvent.getId(), e);
+        }
+    }
+
+    @Scheduled(fixedDelayString = "${outbox.relay.poll-interval-ms:30000}")
     public void relay() {
         List<OutboxEvent> outboxEvents =
                 outboxEventRepository.findByPublishedAtIsNullOrderByIdAsc(PageRequest.of(0, batchSize));

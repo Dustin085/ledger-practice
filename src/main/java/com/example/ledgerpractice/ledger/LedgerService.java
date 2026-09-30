@@ -8,11 +8,13 @@ import com.example.ledgerpractice.journal.JournalEntryRepository;
 import com.example.ledgerpractice.journal.JournalEntryStatus;
 import com.example.ledgerpractice.outbox.FundTransferRequestedPayload;
 import com.example.ledgerpractice.outbox.OutboxEvent;
+import com.example.ledgerpractice.outbox.OutboxEventCreatedEvent;
 import com.example.ledgerpractice.outbox.OutboxEventRepository;
 import com.example.ledgerpractice.transfer.FundTransferRequest;
 import com.example.ledgerpractice.transfer.FundTransferRequestRepository;
 import com.example.ledgerpractice.transfer.JournalLineRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
@@ -30,6 +32,7 @@ public class LedgerService {
     private final OutboxEventRepository outboxEventRepository;
     private final AccountRepository accountRepository;
     private final ObjectMapper objectMapper;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     @Transactional
     public JournalEntry initiateTransfer(
@@ -113,6 +116,7 @@ public class LedgerService {
                 .payload(objectMapper.writeValueAsString(payload))
                 .build();
         outboxEventRepository.save(outboxEvent);
+        applicationEventPublisher.publishEvent(new OutboxEventCreatedEvent(outboxEvent.getId()));
 
         return journalEntry;
     }

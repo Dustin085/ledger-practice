@@ -57,6 +57,7 @@ outbox:
   relay:
     batch-size: 100
     confirm-timeout: 5s
+    poll-interval-ms: 30000
 
 reconciliation:
   stale-after: 10m
