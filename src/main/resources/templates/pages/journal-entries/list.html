@@ -33,7 +33,7 @@
         </tr>
         </thead>
         <tbody>
-        <tr th:each="entry : ${journalEntries}">
+        <tr th:each="entry : ${page.content}">
             <td th:text="${entry.id}"></td>
             <td th:text="${entry.entryDate}"></td>
             <td>
@@ -41,11 +41,22 @@
             </td>
             <td th:text="${entry.status}"></td>
         </tr>
-        <tr th:if="${#lists.isEmpty(journalEntries)}">
+        <tr th:if="${!page.hasContent}">
             <td colspan="4">沒有符合條件的分錄</td>
         </tr>
         </tbody>
     </table>
+    <a th:if="${!page.first}"
+       th:href="@{/journal-entries(status=${selectedStatus},page=${page.number}-1,size=${page.size})}"
+    >上一頁</a>
+    <span>
+    第 <span th:text="${page.number + 1}"></span>
+    /
+    <span th:text="${page.totalPages}"></span> 頁
+    </span>
+    <a th:if="${!page.last}"
+       th:href="@{/journal-entries(status=${selectedStatus},page=${page.number}+1,size=${page.size})}"
+    >下一頁</a>
 
 </div>
 </body>

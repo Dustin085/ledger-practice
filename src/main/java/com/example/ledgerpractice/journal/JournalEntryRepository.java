@@ -1,6 +1,7 @@
 package com.example.ledgerpractice.journal;
 
-import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -9,7 +10,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface JournalEntryRepository extends JpaRepository<JournalEntry, Long> {
-    List<JournalEntry> findByStatus(JournalEntryStatus status, Sort sort);
+    Page<JournalEntry> findByStatus(JournalEntryStatus status, Pageable pageable);
 
     List<JournalEntry> findAllByReversalOfEntryId(Long reversalOfEntryId);
 
