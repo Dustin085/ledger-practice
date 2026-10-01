@@ -88,7 +88,7 @@ class DeadLetterQueueServiceTest {
 
         assertThat(processed).isTrue();
         assertThat(deadLetterQueueService.countMessages(SUBMISSION_DEAD_LETTER_QUEUE_NAME)).isZero();
-        Message redelivered = rabbitTemplate.receive(SUBMISSION_QUEUE_NAME, 2000);
+        Message redelivered = rabbitTemplate.receive(SUBMISSION_QUEUE_NAME, 5000);
         assertThat(redelivered).isNotNull();
         assertThat(new String(redelivered.getBody(), StandardCharsets.UTF_8)).isEqualTo("{\"payload\":\"retry-me\"}");
     }

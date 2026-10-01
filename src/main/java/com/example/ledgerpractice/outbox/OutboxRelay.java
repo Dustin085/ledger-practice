@@ -18,6 +18,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -60,7 +61,8 @@ public class OutboxRelay {
 
     private void publishSingle(OutboxEvent outboxEvent) {
         try {
-            if (publishAndAwaitConfirm(outboxEvent)) {
+            CorrelationData correlationData = publish(outboxEvent);
+            if (awaitConfirm(outboxEvent, correlationData)) {
                 outboxEvent.setPublishedAt(Instant.now());
                 outboxEventRepository.save(outboxEvent);
             }
@@ -72,35 +74,52 @@ public class OutboxRelay {
     @Scheduled(fixedDelayString = "${outbox.relay.poll-interval-ms:30000}")
     @Transactional
     public void relay() {
-        // 鎖要撐到這整輪發布完才能釋放，交易邊界故意跟著整個 for 迴圈走，不只包住查詢本身；
-        // 代價是這段期間會佔用一條 DB connection，包含逐筆等 RabbitMQ confirm 的時間。
+        // 鎖要撐到這整輪發布完才能釋放，交易邊界故意跟著整個方法走，不只包住查詢本身；
+        // 代價是這段期間會佔用一條 DB connection，包含等 RabbitMQ confirm 的時間。
         List<OutboxEvent> outboxEvents =
                 outboxEventRepository.findByPublishedAtIsNullOrderByIdAsc(PageRequest.of(0, batchSize));
+
+        // 第一階段：全部送出、不等待。等 confirm 本質上是在等一次網路來回（RTT），
+        // 先把整批都送出去，broker 收到之後大致會接近同時回 ack，比逐筆「送一筆等一筆」
+        // 省下 (N-1) 次 RTT 的等待時間；也間接縮短上面那個交易持有鎖的時間。
+        List<PendingPublish> pending = new ArrayList<>();
         for (OutboxEvent outboxEvent : outboxEvents) {
             try {
-                if (publishAndAwaitConfirm(outboxEvent)) {
-                    outboxEvent.setPublishedAt(Instant.now());
-                    outboxEventRepository.save(outboxEvent);
-                }
+                pending.add(new PendingPublish(outboxEvent, publish(outboxEvent)));
             } catch (BrokerUnavailableException e) {
-                // broker 明顯有問題（連不上、不回應、nack）時，後面每一筆多半也會一樣，
-                // 逐筆各等一次逾時只是把這一輪（以及共用排程執行緒的其他任務）拖得更久。
-                // 直接放棄這一輪，剩下的事件都還沒標記，下一輪會重來。
-                log.warn("broker 目前無法確認訊息，中止本輪發布，剩餘事件留待下一輪，outboxEventId={}",
+                // broker 連線層級就出問題（送都送不出去），後面大概率也一樣，直接放棄這一輪。
+                log.warn("broker 目前無法送出訊息，中止本輪發布，剩餘事件留待下一輪，outboxEventId={}",
                         outboxEvent.getId(), e);
                 break;
             } catch (RuntimeException e) {
-                // 只跟這一筆有關的問題（例如 payload 壞掉、被退回）不該卡住其他事件。
+                // 只跟這一筆有關的問題（例如 payload 壞掉）不該卡住其他事件。
                 log.warn("Outbox 事件發布失敗，稍後重送，outboxEventId={}", outboxEvent.getId(), e);
+            }
+        }
+
+        // 第二階段：逐筆等 confirm。broker 真的掛掉時，第一筆等到逾時就會 break，
+        // 不會因為拆成兩階段反而變成每筆各付一次逾時成本。
+        for (PendingPublish p : pending) {
+            try {
+                if (awaitConfirm(p.outboxEvent(), p.correlationData())) {
+                    p.outboxEvent().setPublishedAt(Instant.now());
+                    outboxEventRepository.save(p.outboxEvent());
+                }
+            } catch (BrokerUnavailableException e) {
+                log.warn("broker 目前無法確認訊息，中止本輪等待確認，剩餘事件留待下一輪，outboxEventId={}",
+                        p.outboxEvent().getId(), e);
+                break;
+            } catch (RuntimeException e) {
+                log.warn("Outbox 事件發布失敗，稍後重送，outboxEventId={}", p.outboxEvent().getId(), e);
             }
         }
     }
 
-    // convertAndSend 回來只代表「已交給客戶端送出」，不代表 broker 收到。
-    // 必須等到 broker 的 ack 才能標記已發布，否則訊息半路遺失時，Outbox 卻以為送出了，永遠不會重送。
-    // 回傳 false 代表這一筆「不確定 broker 有收到」，不標記，留給下一輪重送（at-least-once，
-    // 重複的訊息由消費端冪等處理）。broker 整體有問題時丟 BrokerUnavailableException。
-    private boolean publishAndAwaitConfirm(OutboxEvent outboxEvent) {
+    private record PendingPublish(OutboxEvent outboxEvent, CorrelationData correlationData) {
+    }
+
+    // convertAndSend 回來只代表「已交給客戶端送出」，不代表 broker 收到；真正的確認在 awaitConfirm。
+    private CorrelationData publish(OutboxEvent outboxEvent) {
         FundTransferRequestedPayload payload =
                 objectMapper.readValue(outboxEvent.getPayload(), FundTransferRequestedPayload.class);
         CorrelationData correlationData = new CorrelationData(String.valueOf(outboxEvent.getId()));
@@ -113,7 +132,13 @@ public class OutboxRelay {
         } catch (AmqpException e) {
             throw new BrokerUnavailableException(e);
         }
+        return correlationData;
+    }
 
+    // 必須等到 broker 的 ack 才能標記已發布，否則訊息半路遺失時，Outbox 卻以為送出了，永遠不會重送。
+    // 回傳 false 代表這一筆「不確定 broker 有收到」，不標記，留給下一輪重送（at-least-once，
+    // 重複的訊息由消費端冪等處理）。broker 整體有問題時丟 BrokerUnavailableException。
+    private boolean awaitConfirm(OutboxEvent outboxEvent, CorrelationData correlationData) {
         CorrelationData.Confirm confirm;
         try {
             confirm = correlationData.getFuture().get(confirmTimeout.toMillis(), TimeUnit.MILLISECONDS);
