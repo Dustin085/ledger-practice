@@ -10,6 +10,16 @@
 
     <h2>試算平衡表</h2>
 
+    <form method="get" th:action="@{/report/trial-balance}">
+        <label>結算日期（留空＝全部歷史）：
+            <input type="date" name="asOfDate" th:value="${asOfDate}" />
+        </label>
+        <button type="submit">查詢</button>
+        <a th:if="${asOfDate != null}" th:href="@{/report/trial-balance}">清除日期</a>
+    </form>
+
+    <p th:if="${asOfDate != null}" th:text="|資料結算至：${asOfDate}|"></p>
+
     <table>
         <thead>
         <tr>

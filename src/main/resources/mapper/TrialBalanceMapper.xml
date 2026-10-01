@@ -17,6 +17,9 @@
         FROM journal_entry_line l
         JOIN journal_entry je ON je.id = l.journal_entry_id
         WHERE je.status = 'POSTED'
+        <if test="asOfDate != null">
+            AND je.entry_date &lt;= #{asOfDate}
+        </if>
         ) posted ON posted.account_id = a.id
         GROUP BY a.id, a.code, a.name, a.type
         ORDER BY a.code
