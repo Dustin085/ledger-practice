@@ -11,6 +11,7 @@ import java.math.BigDecimal;
 // Thymeleaf th:field 的雙向綁定要靠 setter，record 的建構子綁定做不到逐欄位寫回。
 @Setter
 @Getter
+@ValidLineAmount
 public class LineForm {
 
     @NotNull(message = "請選擇科目")

@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PastOrPresent;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -16,6 +17,7 @@ import java.util.List;
 public class TransferForm {
 
     @NotNull(message = "請選擇日期")
+    @PastOrPresent(message = "不可輸入未來日期")
     private LocalDate entryDate = LocalDate.now();
 
     @NotBlank(message = "請輸入摘要")
