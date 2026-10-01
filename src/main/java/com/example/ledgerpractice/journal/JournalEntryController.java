@@ -1,5 +1,6 @@
 package com.example.ledgerpractice.journal;
 
+import com.example.ledgerpractice.exception.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Controller;
@@ -10,7 +11,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
-import java.util.NoSuchElementException;
 
 @Controller
 @RequestMapping("/journal-entries")
@@ -36,7 +36,7 @@ public class JournalEntryController {
     @GetMapping("/{id}")
     public String findById(@PathVariable Long id, Model model) {
         JournalEntry journalEntry = journalEntryRepository.findWithLinesById(id)
-                .orElseThrow(() -> new NoSuchElementException("JournalEntry with id " + id + " not found"));
+                .orElseThrow(() -> new EntityNotFoundException(JournalEntry.class, id));
         model.addAttribute("journalEntry", journalEntry);
         return "pages/journal-entries/detail";
     }

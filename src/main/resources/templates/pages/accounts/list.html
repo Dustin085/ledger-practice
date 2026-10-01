@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}" lang="zh-TW">
+<head>
+    <title>帳號列表</title>
+</head>
+<body>
+<div layout:fragment="content">
+
+    <h1>帳號列表</h1>
+
+    <table>
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>code</th>
+            <th>名稱</th>
+            <th>類型</th>
+            <th>是否為外部帳號</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="account : ${accounts}">
+            <td th:text="${account.id}"></td>
+            <td th:text="${account.code}"></td>
+            <td>
+                <a th:href="@{/accounts/{id}(id=${account.id})}" th:text="${account.name}"></a>
+            </td>
+            <td th:text="${account.type}"></td>
+            <td th:text="${account.externalSettlement ? '是' : '否'}"></td>
+        </tr>
+        </tbody>
+    </table>
+
+</div>
+</body>
+</html>

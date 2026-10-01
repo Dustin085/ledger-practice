@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}" lang="zh-TW">
+<head>
+    <title>帳號詳情</title>
+</head>
+<body>
+<div layout:fragment="content">
+
+    <h1>帳號詳情</h1>
+
+    <p>ID：<span th:text="${account.id}"></span></p>
+    <p>編號：<span th:text="${account.code}"></span></p>
+    <p>名稱：<span th:text="${account.name}"></span></p>
+    <p>類型：<span th:text="${account.type}"></span></p>
+    <p>是否為外部帳號：<span th:text="${account.externalSettlement ? '是' : '否'}"></span></p>
+
+    <table>
+        <thead>
+        <tr>
+            <th>條目ID</th>
+            <th>日期</th>
+            <th>借方金額</th>
+            <th>貸方金額</th>
+            <th>備註</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="line : ${lines}">
+            <td th:text="${line.id}"></td>
+            <td th:text="${line.entryDate}"></td>
+            <td th:text="${line.debitAmount}"></td>
+            <td th:text="${line.creditAmount}"></td>
+            <td th:text="${line.memo}"></td>
+        </tr>
+        </tbody>
+    </table>
+
+    <p>
+        <a th:href="@{/accounts}">回列表</a>
+    </p>
+
+</div>
+</body>
+</html>
