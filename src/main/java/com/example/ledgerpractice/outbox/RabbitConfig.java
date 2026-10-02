@@ -112,6 +112,8 @@ public class RabbitConfig {
 
     @Bean
     public MessageConverter jsonMessageConverter() {
-        return new JacksonJsonMessageConverter("com.example.ledgerpractice");
+        // trusted packages 是對「類別所在套件名」做完全相等比對，不含子套件、也不支援通配符，
+        // 所以要列出訊息類別實際所在的套件。
+        return new JacksonJsonMessageConverter("com.example.ledgerpractice.outbox");
     }
 }
