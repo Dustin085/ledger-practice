@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}" lang="zh-TW">
+<head>
+    <title>稽核紀錄</title>
+</head>
+<body>
+<div layout:fragment="content">
+
+    <h1>稽核紀錄</h1>
+
+    <table>
+        <thead>
+        <tr>
+            <th>編號</th>
+            <th>時間</th>
+            <th>實體類型</th>
+            <th>實體 ID</th>
+            <th>事件</th>
+            <th>內容</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="log : ${page.content}">
+            <td th:text="${log.id}"></td>
+            <td th:text="${log.createdAt}"></td>
+            <td th:text="${log.aggregateType}"></td>
+            <td th:text="${log.aggregateId}"></td>
+            <td th:text="${log.eventType}"></td>
+            <td>
+                <details>
+                    <summary>展開</summary>
+                    <pre th:text="${log.payload}"></pre>
+                </details>
+            </td>
+        </tr>
+        <tr th:if="${!page.hasContent}">
+            <td colspan="6">目前沒有稽核紀錄</td>
+        </tr>
+        </tbody>
+    </table>
+
+    <a th:if="${!page.first}"
+       th:href="@{/admin/audit-logs(page=${page.number}-1,size=${page.size})}">上一頁</a>
+    <span>
+    第 <span th:text="${page.number + 1}"></span>
+    /
+    <span th:text="${page.totalPages}"></span> 頁
+    </span>
+    <a th:if="${!page.last}"
+       th:href="@{/admin/audit-logs(page=${page.number}+1,size=${page.size})}">下一頁</a>
+
+</div>
+</body>
+</html>
