@@ -12,7 +12,7 @@
 
     <form method="get" th:action="@{/report/trial-balance}">
         <label>結算日期（留空＝全部歷史）：
-            <input type="date" name="asOfDate" th:value="${asOfDate}" />
+            <input type="date" name="asOfDate" th:value="${asOfDate}"/>
         </label>
         <button type="submit">查詢</button>
         <a th:if="${asOfDate != null}" th:href="@{/report/trial-balance}">清除日期</a>
@@ -46,6 +46,8 @@
         </tr>
         </tfoot>
     </table>
+
+    <a th:href="@{/report/trial-balance.csv(asOfDate=${asOfDate})}">匯出CSV</a>
 
 </div>
 </body>
