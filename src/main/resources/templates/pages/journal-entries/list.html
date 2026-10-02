@@ -11,15 +11,29 @@
     <h1>分錄列表</h1>
 
     <p>
-        <a th:href="@{/journal-entries}"
+        <a th:href="@{/journal-entries(keyword=${keyword},from=${from},to=${to})}"
            th:text="${selectedStatus == null ? '[全部]' : '全部'}"></a>
         &nbsp;
         <span th:each="status : ${T(com.example.ledgerpractice.journal.JournalEntryStatus).values()}">
-            <a th:href="@{/journal-entries(status=${status})}"
+            <a th:href="@{/journal-entries(status=${status},keyword=${keyword},from=${from},to=${to})}"
                th:text="${selectedStatus == status ? '[' + status + ']' : status}"></a>
             &nbsp;
         </span>
     </p>
+
+    <form method="get" th:action="@{/journal-entries}">
+        <input type="hidden" name="status" th:value="${selectedStatus}"/>
+        <label>摘要關鍵字：
+            <input type="text" name="keyword" th:value="${keyword}"/>
+        </label>
+        <label>日期從：
+            <input type="date" name="from" th:value="${from}"/>
+        </label>
+        <label>到：
+            <input type="date" name="to" th:value="${to}"/>
+        </label>
+        <button type="submit">搜尋</button>
+    </form>
 
     <p><a th:href="@{/journal-entries/new}">新增分錄</a></p>
 
@@ -47,7 +61,7 @@
         </tbody>
     </table>
     <a th:if="${!page.first}"
-       th:href="@{/journal-entries(status=${selectedStatus},page=${page.number}-1,size=${page.size})}"
+       th:href="@{/journal-entries(status=${selectedStatus},keyword=${keyword},from=${from},to=${to},page=${page.number}-1,size=${page.size})}"
     >上一頁</a>
     <span>
     第 <span th:text="${page.number + 1}"></span>
@@ -55,7 +69,7 @@
     <span th:text="${page.totalPages}"></span> 頁
     </span>
     <a th:if="${!page.last}"
-       th:href="@{/journal-entries(status=${selectedStatus},page=${page.number}+1,size=${page.size})}"
+       th:href="@{/journal-entries(status=${selectedStatus},keyword=${keyword},from=${from},to=${to},page=${page.number}+1,size=${page.size})}"
     >下一頁</a>
 
 </div>

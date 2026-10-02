@@ -1,17 +1,14 @@
 package com.example.ledgerpractice.journal;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
 
-public interface JournalEntryRepository extends JpaRepository<JournalEntry, Long> {
-    Page<JournalEntry> findByStatus(JournalEntryStatus status, Pageable pageable);
-
+public interface JournalEntryRepository extends JpaRepository<JournalEntry, Long>, JpaSpecificationExecutor<JournalEntry> {
     List<JournalEntry> findAllByReversalOfEntryId(Long reversalOfEntryId);
 
     @Query("SELECT DISTINCT je FROM JournalEntry je " +
