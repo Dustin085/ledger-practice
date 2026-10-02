@@ -36,6 +36,7 @@ public class DeadLetterController {
     public String reprocess(@PathVariable String dlqKey, RedirectAttributes redirectAttributes) {
         String dlqName = DLQ_NAMES.get(dlqKey);
         if (dlqName == null) {
+            redirectAttributes.addFlashAttribute("errorMessage","無效的 dlqKey");
             return "redirect:/admin/dead-letters";
         }
         boolean processed = deadLetterQueueService.reprocessNext(dlqName);
@@ -48,6 +49,7 @@ public class DeadLetterController {
     public String discard(@PathVariable String dlqKey, RedirectAttributes redirectAttributes) {
         String dlqName = DLQ_NAMES.get(dlqKey);
         if (dlqName == null) {
+            redirectAttributes.addFlashAttribute("errorMessage","無效的 dlqKey");
             return "redirect:/admin/dead-letters";
         }
         boolean discarded = deadLetterQueueService.discardNext(dlqName);
