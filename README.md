@@ -22,6 +22,15 @@ CRUD 之外的東西：最終一致性、Saga、Outbox/Inbox pattern、訊息佇
   callback 機制。
 - **對帳**：外部 callback 遺失時，排程主動查詢外部狀態補回結果；查詢結果不確定時絕不自動補償
   （錢可能已經真的轉出去了）。
+- **稽核紀錄落地 + 冪等消費**：`AuditLogListener` 訂閱 outbox exchange 上的**所有**事件（`#` 綁定），
+  從 routing key（`<aggregateType>.<eventType>`）拆出事件來源，`payload` 原樣存成 JSON，表結構不綁定
+  任何特定事件。擋重複訊息靠 `(aggregate_type, aggregate_id, event_type)` 的唯一約束，`save` 撞到
+  就當成已記錄——不先查再存，因為先查擋不住併發的重複訊息，約束本身才是最後防線。
+- **動態查詢**：分錄列表用 Spring Data JPA `Specification` 組合 `status`／摘要關鍵字／日期區間，
+  每個條件是獨立的 `Specification`，沒給值就回傳 `null`（不限制），組合時自動被忽略；試算表的
+  「結算日期」則用 MyBatis `<if>` 做同樣的事，兩種做法對照著練。
+- **一般 CRUD 週邊功能**：分頁（含篩選條件在翻頁時保留、超出範圍頁碼導向最後一頁）、Bean Validation
+  （含自訂跨欄位 constraint `@ValidLineAmount`）、CSV 匯出（UTF-8 BOM、欄位跳脫）、找不到資源回 404。
 
 ## 技術棧
 
@@ -32,16 +41,18 @@ MyBatis 手寫 SQL），Thymeleaf 樣板，H2（開發/測試用記憶體資料�
 
 | package | 內容 |
 |---|---|
-| `account` | 科目（`Account`），複式記帳的最基本維度 |
-| `journal` | 分錄（`JournalEntry`/`JournalEntryLine`）與其查詢頁面 |
+| `account` | 科目（`Account`），複式記帳的最基本維度；科目列表與明細（該科目的分錄流水） |
+| `journal` | 分錄（`JournalEntry`/`JournalEntryLine`）、分頁 + 動態搜尋頁面（`JournalEntrySpecifications`） |
 | `ledger` | 核心業務邏輯：`LedgerService`（建立分錄）、Saga 相關 service（送出/確認/補償/對帳） |
 | `transfer` | 資金轉帳請求（`FundTransferRequest`），Saga 的持久化狀態機 |
 | `payment` | 外部金流閘道的介面與 mock 實作 |
 | `outbox` | Outbox/Inbox 事件、RabbitMQ topology 設定、`OutboxRelay`、`DeadLetterQueueService` |
 | `webhook` | 外部系統 callback 入口與簽章驗證 |
-| `report` | MyBatis 寫的試算表查詢 |
+| `report` | MyBatis 寫的試算表查詢（可指定結算日期）與 CSV 匯出 |
 | `metrics` | 自訂 Actuator 指標（Outbox 積壓、轉帳狀態統計） |
 | `admin` | DLQ 管理頁面（peek / 重新處理 / 丟棄） |
+| `auditlog` | 稽核紀錄：`AuditLogListener`（通用、冪等地把事件落地）、唯讀列表頁 |
+| `exception` | `EntityNotFoundException`（`@ResponseStatus(NOT_FOUND)`，不需要 `@ControllerAdvice`） |
 | `config` | 種子資料 |
 
 ## 快速開始
@@ -53,10 +64,12 @@ docker compose up -d                 # 啟動 RabbitMQ
 
 預設用 8080。開機後可以看：
 
-- `http://localhost:8080/journal-entries`：分錄列表
+- `http://localhost:8080/journal-entries`：分錄列表，可依狀態、摘要關鍵字、日期區間篩選（`?status=POSTED&keyword=薪資&from=2026-01-01&to=2026-12-31`），支援分頁
+- `http://localhost:8080/accounts`：科目列表；點進去看該科目的分錄流水
 - `http://localhost:8080/transfers/pending`：等待外部確認的轉帳，有按鈕可以模擬外部回覆
-- `http://localhost:8080/report/trial-balance`：試算表
+- `http://localhost:8080/report/trial-balance`：試算表，可加 `?asOfDate=2026-10-01` 看某日為止的餘額；`/report/trial-balance.csv` 匯出 CSV
 - `http://localhost:8080/admin/dead-letters`：DLQ 管理頁面
+- `http://localhost:8080/admin/audit-logs`：稽核紀錄（要有 RabbitMQ 在跑，事件才會流進來）
 - `http://localhost:15672`（帳密 `guest`/`guest`）：RabbitMQ 管理介面
 
 ## 測試
@@ -70,9 +83,12 @@ docker compose up -d                 # 啟動 RabbitMQ
 
 測試分幾層：
 - **單元測試**（Mockito）：`ledger`、`outbox` package 底下的 service/relay。
-- **Controller 測試**（`@WebMvcTest` + MockMvc）：`LedgerControllerTest`、
+- **Controller 測試**（`@WebMvcTest` + MockMvc）：`LedgerControllerTest`、`AccountControllerTest`、
+  `DeadLetterControllerTest`、`AuditLogControllerTest`、
   [`SettlementWebhookControllerTest`](src/test/java/com/example/ledgerpractice/webhook/SettlementWebhookControllerTest.java)——
   後者驗證簽章正確/錯誤/被竄改、格式錯誤各種情境，不需要真的連 MQ。
+- **Listener / 設定測試**：`AuditLogListenerTest`（真的 H2 + 真的唯一約束，驗證重複訊息只存一筆；刻意
+  不包交易，行為才會跟正式環境一致）、`RabbitConfigTest`（見下方「踩過的坑」）。
 - **整合測試**（`@SpringBootTest`）：`TransferSagaIntegrationTest`（走完整條 saga）、
   `TransferReconciliationIntegrationTest`（對帳）、`TransferResultConcurrencyTest`
   （併發送同一個 callback 兩次，斷言只處理一次、不會有其中一邊丟例外）。
@@ -132,6 +148,50 @@ RabbitMQ 管理介面看，現在 `http://localhost:8080/admin/dead-letters` 提
 如果原因還在（例如 `externalReferenceId` 本來就是隨機亂填、資料庫裡根本不存在），重新處理只會讓它照
 一樣的路徑再失敗一次，被丟回 DLQ——這是預期行為，不是 bug。只有在根本原因已經解決的情況下（例如外部
 系統當時暫時斷線，現在已經恢復），重新處理才會真的成功。
+
+## 踩過的坑與已知限制
+
+### `Message` 參數的 listener 會觸發 RabbitMQ 轉換器的「信任套件」檢查
+
+`AuditLogListener` 的參數是原始 `Message`（為了通用，不綁定特定 payload 型別）。轉換器沒有參數型別可推，
+改讀訊息的 `__TypeId__` 標頭，這時 `JacksonJsonMessageConverter` 的 trusted packages 就會生效——而
+它是對**套件名完全相等**比對（位元組碼：`String.equals`），不含子套件、也不支援 `*` 通配符。原本設定的
+`com.example.ledgerpractice` 永遠比不到 `...ledgerpractice.outbox`，訊息每次都轉換失敗、重試用盡後被丟棄。
+另外兩個 listener 的參數是具體型別，轉換器直接用參數型別、不讀標頭，所以這個設定錯誤一直沒被觸發過。
+
+**為什麼測試沒抓到**：`AuditLogListenerTest` 直接呼叫 `listener.record(...)`，繞過了 RabbitMQ 收訊息時的
+轉換層，所以單元測試全綠、實際跑起來每則都失敗，是開真的 RabbitMQ 端到端才發現的。修正後補了
+[`RabbitConfigTest`](src/test/java/com/example/ledgerpractice/outbox/RabbitConfigTest.java)，
+直接餵 `__TypeId__` 標頭給轉換器，確認它在修正前會用同樣的錯誤失敗。**教訓：涉及訊息轉換的改動，
+單元測試不夠，一定要跑過一次真的 broker。**
+
+### 冪等靠「接住唯一約束例外」，而且 listener 不能加 `@Transactional`
+
+`AuditLogListener` 直接 `save`、接住 `DataIntegrityViolationException`，不先 `exists` 檢查：先查再存
+擋不住兩個 consumer 同時處理同一則重複訊息（兩邊都會通過檢查），唯一約束一定要有，那就只留這一套。
+但這個 `catch` 只有在 `save` 自己開短交易時才有效——若整個 listener 包在同一個交易裡，例外一丟出，
+交易就被標記 rollback-only，接住之後提交仍會失敗。只接這一種例外，不接 `Exception`，否則 JSON 錯誤、
+資料庫斷線也會被當成「重複」吞掉。想要「完全不丟例外」可以改用 PostgreSQL 的
+`INSERT ... ON CONFLICT DO NOTHING`，代價是綁資料庫方言、繞過 JPA；H2 沒有等價的原子語法，所以目前沒採用。
+
+### CSV 匯出給 Excel 看，一定要寫 UTF-8 BOM
+
+沒有 BOM 的 UTF-8 CSV，Windows 的 Excel 會用系統編碼（Big5）解碼，中文變亂碼，但用瀏覽器、`curl`、
+編輯器看都正常，很容易漏測。BOM 是字元 `﻿`（寫成 `"﻿"`，**單一反斜線**；寫成 `"\\uFEFF"`
+會把 6 個字面字元輸出到檔案開頭，還會多一行把標頭擠到第二行）。換行用 `write("...\r\n")` 而不是
+`println`，後者的換行符號跟著伺服器的作業系統變。含逗號、換行、雙引號的欄位依 RFC 4180 用雙引號包起來、
+內部的 `"` 寫成 `""`；`BigDecimal` 不會出現這些字元，不需要跳脫。
+
+### 已知限制
+
+- `AuditLogListener` 遇到不認得的 `aggregateType`、routing key 格式不對、payload 缺 id 欄位時，只記
+  `log.error` 並略過，不丟例外——audit queue 沒有設死信佇列，丟例外會讓訊息無限重新排隊卡死 listener。
+  代價是這類訊息只留在 log 裡。新增 aggregate 種類時，要在 `AGGREGATE_ID_FIELDS` 補一筆，訊息類別所在
+  的套件也要加進 `RabbitConfig` 的 trusted packages。
+- `OutboxRelay.publish` 目前寫死用 `FundTransferRequestedPayload` 反序列化，只有一種事件，通用化要先改這裡。
+- 稽核紀錄頁面的頁碼超出範圍時，不像分錄列表那樣重導向到最後一頁。
+- 全部 `requires-rabbitmq` 測試一起跑時（跨 `ledger` + `outbox` 兩個 package）有未查明的不穩定；預設的
+  `./mvnw.cmd test` 不受影響。
 
 ## 壓測（Load Testing）
 
